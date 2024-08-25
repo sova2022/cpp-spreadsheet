@@ -40,6 +40,14 @@ void Sheet::SetCell(Position pos, std::string text) {
 }
 
 const CellInterface* Sheet::GetCell(Position pos) const {
+    return GetCellPtr(pos);
+}
+
+CellInterface* Sheet::GetCell(Position pos) {    
+    return const_cast<CellInterface*>(static_cast<const Sheet&>(*this).GetCell(pos));
+}
+
+const Cell* Sheet::GetCellPtr(Position pos) const {
     EnsurePositionIsValid(pos);
     if (pos.row < size_.rows && pos.col < size_.cols) {
         return cells_[pos.row][pos.col].get();
@@ -47,14 +55,18 @@ const CellInterface* Sheet::GetCell(Position pos) const {
     return nullptr;
 }
 
-CellInterface* Sheet::GetCell(Position pos) {    
-    return const_cast<CellInterface*>(static_cast<const Sheet&>(*this).GetCell(pos));
-}
-
 void Sheet::ClearCell(Position pos) {
     EnsurePositionIsValid(pos);
     if (pos.row < size_.rows && pos.col < size_.cols) {
-        cells_[pos.row][pos.col].reset();
+        auto& cell = cells_[pos.row][pos.col];
+
+        if (cell && cell->HasDependentCells()) {
+            cell->Clear();
+        }
+
+        else {
+            cell.reset();
+        }
     }
 }
 

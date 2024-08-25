@@ -107,20 +107,23 @@ Cell::~Cell() = default;
 
 void Cell::Set(std::string text) {
     referenced_cells_.clear();
+
+    std::unique_ptr<Impl> temp_impl;
     if (text.empty()) {
-        impl_ = std::make_unique<EmptyImpl>();
+        temp_impl = std::make_unique<EmptyImpl>();
     }
 
     else if (text[0] == FORMULA_SIGN && text.size() > 1) {
-        impl_ = std::make_unique<FormulaImpl>(text.substr(1), sheet_);
-        FindCircularDependency();       
-        UpdateDependencies();
+        temp_impl = std::make_unique<FormulaImpl>(text.substr(1), sheet_);
+        FindCircularDependency(temp_impl->GetReferencedCells());
     }
 
     else {
-        impl_ = std::make_unique<TextImpl>(std::move(text));
+        temp_impl = std::make_unique<TextImpl>(std::move(text));
     }
 
+    impl_ = std::move(temp_impl);
+    UpdateDependencies();
     InvalidateCache();
 }
 
@@ -140,10 +143,14 @@ std::string Cell::GetText() const {
     return impl_->GetText();
 }
 
+bool Cell::HasDependentCells() const {
+    return !dependent_cells_.empty();
+}
+
 void Cell::FindCircularDependency(const std::vector<Position>& ref_cells, std::unordered_set<Cell*>& visited_cells) {
 
     for (const auto& pos : ref_cells) {
-        Cell* referenced_cell = dynamic_cast<Cell*>(sheet_.GetCell(pos));
+        Cell* referenced_cell = const_cast<Cell*>(sheet_.GetCellPtr(pos));
         if (referenced_cell == this) {
             throw CircularDependencyException("Circular dependency detected");
         }
@@ -157,23 +164,20 @@ void Cell::FindCircularDependency(const std::vector<Position>& ref_cells, std::u
     }
 }
 
-void Cell::FindCircularDependency() {
+void Cell::FindCircularDependency(const std::vector<Position>& ref_cells) {
     std::unordered_set<Cell*> visited_cells;
-    FindCircularDependency(impl_->GetReferencedCells(), visited_cells);
+    FindCircularDependency(ref_cells, visited_cells);
 }
 
 void Cell::UpdateDependencies() {
     referenced_cells_.clear();
-    for (Cell* dependent_cell : dependent_cells_) {
-        dependent_cell->dependent_cells_.erase(this);
-    }
 
     for (const auto& pos : impl_->GetReferencedCells()) {
         if (!sheet_.GetCell(pos)) {
             sheet_.SetCell(pos, "");
         }
 
-        Cell* new_referenced_cell = dynamic_cast<Cell*>(sheet_.GetCell(pos));
+        Cell* new_referenced_cell = const_cast<Cell*>(sheet_.GetCellPtr(pos));
         referenced_cells_.insert(new_referenced_cell);
         new_referenced_cell->dependent_cells_.insert(this);
     }
@@ -183,11 +187,7 @@ void Cell::InvalidateCache() {
     impl_->ResetCache();
     for (const auto& dependent_cell : dependent_cells_) {
         if (dependent_cell->impl_->GetCache()) {
-            dependent_cell->impl_->ResetCache();
-
-            if (!dependent_cell->dependent_cells_.empty()) {
-                dependent_cell->InvalidateCache();
-            }
+            dependent_cell->InvalidateCache();
         }
     }
 }

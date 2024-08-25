@@ -10,7 +10,7 @@ class Sheet;
 
 class Cell : public CellInterface {
 public:
-    Cell(Sheet& sheet);
+    explicit Cell(Sheet& sheet);
     ~Cell() override;
 
     void Set(std::string text);
@@ -19,9 +19,10 @@ public:
     Value GetValue() const override;
     std::string GetText() const override;
     std::vector<Position> GetReferencedCells() const override;
+    bool HasDependentCells() const;
     void InvalidateCache();
     void FindCircularDependency(const std::vector<Position>& ref_cells, std::unordered_set<Cell*>& visited_cells);
-    void FindCircularDependency();
+    void FindCircularDependency(const std::vector<Position>& ref_cells);
     void UpdateDependencies();
 
 private:
