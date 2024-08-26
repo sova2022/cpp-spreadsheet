@@ -1,15 +1,7 @@
-
 #include "sheet.h"
 
-#include "cell.h"
-#include "common.h"
-
 #include <algorithm>
-#include <functional>
 #include <iostream>
-#include <optional>
-
-using namespace std::literals;
 
 Sheet::Sheet() : size_{ 0, 0 } {}
 
@@ -36,6 +28,11 @@ void Sheet::SetCell(Position pos, std::string text) {
     if (!cells_[pos.row][pos.col]) {
         cells_[pos.row][pos.col] = std::make_unique<Cell>(*this);
     }
+    else {
+        if (cells_[pos.row][pos.col]->GetText() == text) {
+            return; 
+        }
+    }
     cells_[pos.row][pos.col]->Set(std::move(text));
 }
 
@@ -55,15 +52,17 @@ const Cell* Sheet::GetCellPtr(Position pos) const {
     return nullptr;
 }
 
+Cell* Sheet::GetCellPtr(Position pos) {
+    return const_cast<Cell*>(static_cast<const Sheet&>(*this).GetCellPtr(pos));
+}
+
 void Sheet::ClearCell(Position pos) {
     EnsurePositionIsValid(pos);
     if (pos.row < size_.rows && pos.col < size_.cols) {
         auto& cell = cells_[pos.row][pos.col];
-
         if (cell && cell->HasDependentCells()) {
             cell->Clear();
         }
-
         else {
             cell.reset();
         }

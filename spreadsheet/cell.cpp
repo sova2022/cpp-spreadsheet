@@ -1,9 +1,7 @@
 #include "cell.h"
 #include "sheet.h"
 
-#include <cassert>
 #include <iostream>
-#include <string>
 #include <optional>
 
 class Cell::Impl {
@@ -27,6 +25,7 @@ public:
     CellInterface::Value GetValue() const override {
         return "";
     }
+
     std::string GetText() const override {
         return "";
     }
@@ -60,15 +59,12 @@ public:
     
     CellInterface::Value GetValue() const override {
         auto formula_value = formula_->Evaluate(sheet_);
-
         if (!cache_.has_value()) {
             cache_ = formula_value;
         }
-
         if (std::holds_alternative<double>(formula_value)) {
             return std::get<double>(formula_value);
         }
-
         else {
             return std::get<FormulaError>(formula_value);
         }
@@ -100,28 +96,22 @@ private:
 Cell::Cell(Sheet& sheet)
     : impl_(std::make_unique<EmptyImpl>())
     , sheet_(sheet) {
-
 }
 
 Cell::~Cell() = default;
 
 void Cell::Set(std::string text) {
-    referenced_cells_.clear();
-
     std::unique_ptr<Impl> temp_impl;
     if (text.empty()) {
         temp_impl = std::make_unique<EmptyImpl>();
     }
-
     else if (text[0] == FORMULA_SIGN && text.size() > 1) {
         temp_impl = std::make_unique<FormulaImpl>(text.substr(1), sheet_);
         FindCircularDependency(temp_impl->GetReferencedCells());
     }
-
     else {
         temp_impl = std::make_unique<TextImpl>(std::move(text));
     }
-
     impl_ = std::move(temp_impl);
     UpdateDependencies();
     InvalidateCache();
@@ -148,7 +138,6 @@ bool Cell::HasDependentCells() const {
 }
 
 void Cell::FindCircularDependency(const std::vector<Position>& ref_cells, std::unordered_set<Cell*>& visited_cells) {
-
     for (const auto& pos : ref_cells) {
         Cell* referenced_cell = const_cast<Cell*>(sheet_.GetCellPtr(pos));
         if (referenced_cell == this) {
@@ -170,15 +159,11 @@ void Cell::FindCircularDependency(const std::vector<Position>& ref_cells) {
 }
 
 void Cell::UpdateDependencies() {
-    referenced_cells_.clear();
-
     for (const auto& pos : impl_->GetReferencedCells()) {
         if (!sheet_.GetCell(pos)) {
             sheet_.SetCell(pos, "");
         }
-
-        Cell* new_referenced_cell = const_cast<Cell*>(sheet_.GetCellPtr(pos));
-        referenced_cells_.insert(new_referenced_cell);
+        Cell* new_referenced_cell = sheet_.GetCellPtr(pos);
         new_referenced_cell->dependent_cells_.insert(this);
     }
 }

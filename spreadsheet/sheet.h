@@ -3,9 +3,6 @@
 #include "cell.h"
 #include "common.h"
 
-#include <algorithm>
-#include <functional>
-
 class Sheet : public SheetInterface {
 public:
     Sheet();
@@ -15,6 +12,7 @@ public:
     const CellInterface* GetCell(Position pos) const override;
     CellInterface* GetCell(Position pos) override;
     const Cell* GetCellPtr(Position pos) const;
+    Cell* GetCellPtr(Position pos);
     void ClearCell(Position pos) override;
     Size GetPrintableSize() const override;
     void PrintValues(std::ostream& output) const override;
