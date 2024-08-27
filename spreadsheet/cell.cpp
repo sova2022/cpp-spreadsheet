@@ -139,7 +139,7 @@ bool Cell::HasDependentCells() const {
 
 void Cell::FindCircularDependency(const std::vector<Position>& ref_cells, std::unordered_set<Cell*>& visited_cells) {
     for (const auto& pos : ref_cells) {
-        Cell* referenced_cell = const_cast<Cell*>(sheet_.GetCellPtr(pos));
+        Cell* referenced_cell = sheet_.GetCellPtr(pos);
         if (referenced_cell == this) {
             throw CircularDependencyException("Circular dependency detected");
         }
